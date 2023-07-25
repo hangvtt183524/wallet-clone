@@ -1,4 +1,5 @@
 import {ReactNode, useState} from "react";
+import { isMobile } from 'react-device-detect'
 
 type LinkOfTextAndLink = string | { text: string; url: string }
 
@@ -55,7 +56,11 @@ export function WalletModalV2<T = unknown>(props: WalletModalV2Props<T>) {
   return (
       <div>
         <div>Selected wallet: {selectedWallet}</div>
-        <DesktopModal wallets={wallets} docLink={docLink} docText={docText} connectWallet={connectWallet} />
+          { isMobile ? (
+                  <MobileModal wallets={wallets} docLink={docLink} docText={docText} connectWallet={connectWallet} />
+          ) : (
+              <DesktopModal wallets={wallets} docLink={docLink} docText={docText} connectWallet={connectWallet} />
+          )}
       </div>
   )
 }
@@ -100,6 +105,35 @@ function WalletSelect<T>({
                     <button onClick={() => onClick(wallet)}>{wallet.title}</button>
                 )
             })}
+        </div>
+    )
+}
+
+function MobileModal<T>({
+                            wallets: wallets_,
+                            connectWallet,
+                            docLink,
+                            docText,
+                        }: Pick<WalletModalV2Props<T>, 'wallets' | 'docLink' | 'docText'> & {
+    connectWallet: (wallet: WalletConfigV2<T>) => void
+}) {
+    const [status, setStatus] = useState("");
+
+    console.log('doc: ', docLink, docText)
+    return (
+        <div>
+            <div>Mobile Modal</div>
+            <div>Status: {status}</div>
+            <WalletSelect
+                wallets={wallets_}
+                onClick={(wallet) => {
+                    connectWallet(wallet)
+                    setStatus(`${wallet.deepLink} ${wallet.installed}`)
+                    if (wallet.deepLink && wallet.installed === false) {
+                        window.open(wallet.deepLink)
+                    }
+                }}
+            />
         </div>
     )
 }
