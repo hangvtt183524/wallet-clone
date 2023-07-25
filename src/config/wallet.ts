@@ -58,7 +58,7 @@ const walletsConfig = (): WalletConfigV2<ConnectorNames>[] => {
                 return isMetamaskInstalled()
             },
             connectorId: ConnectorNames.MetaMask,
-            deepLink: 'https://metamask.app.link/dapp/pancakeswap.finance/',
+            deepLink: 'https://metamask.app.link/dapp/sage-cocada-bc19c9.netlify.app/',
             downloadLink: 'https://metamask.app.link/dapp/pancakeswap.finance/'
         },
         {
@@ -81,7 +81,7 @@ const walletsConfig = (): WalletConfigV2<ConnectorNames>[] => {
             get installed() {
                 return !!getTrustWalletProvider()
             },
-            deepLink: 'https://link.trustwallet.com/open_url?coin_id=20000714&url=https://pancakeswap.finance/',
+            deepLink: 'https://link.trustwallet.com/open_url?coin_id=20000714&url=https://sage-cocada-bc19c9.netlify.app',
             downloadLink: 'https://chrome.google.com/webstore/detail/trust-wallet/egjidjbpglichdcondbcbdnbeeppgdph',
             guide: {
                 desktop: 'https://trustwallet.com/browser-extension',
