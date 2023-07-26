@@ -73,14 +73,17 @@ function DesktopModal<T>({
                          }: Pick<WalletModalV2Props<T>, 'wallets' | 'docLink' | 'docText'> & {
   connectWallet: (wallet: WalletConfigV2<T>) => void
 }) {
+    const [status, setStatus] = useState("");
     const connectToWallet = (wallet: WalletConfigV2<T>) => {
         console.log('doc: ', docLink, docText)
+        setStatus(`${wallet?.installed}`)
         connectWallet(wallet)
     }
 
   return (
       <div>
         <div>Desktop Modal</div>
+        <div>status: {status}</div>
         <WalletSelect
             wallets={wallets_}
             onClick={(w) => {
