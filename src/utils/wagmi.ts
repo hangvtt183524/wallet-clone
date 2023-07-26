@@ -1,46 +1,21 @@
-import { CHAINS } from '../config/chains'
-import { PUBLIC_NODES } from "../config/nodes.ts";
-import { configureChains, createConfig, createStorage } from "wagmi";
+import { configureChains, createClient, createStorage } from "wagmi";
 import { jsonRpcProvider } from 'wagmi/providers/jsonRpc'
-import { mainnet } from 'wagmi/chains'
-import { MetaMaskConnector } from 'wagmi/connectors/metaMask'
-import { CoinbaseWalletConnector } from 'wagmi/connectors/coinbaseWallet'
-import { WalletConnectConnector } from 'wagmi/connectors/walletConnect'
+import { CHAINS } from '../config/chains'
+import { CoinbaseWalletConnector } from 'wagmi/connectors/coinbaseWallet';
+import { MetaMaskConnector } from 'wagmi/connectors/metaMask';
+import { WalletConnectLegacyConnector } from 'wagmi/connectors/walletConnectLegacy';
 import { TrustWalletConnector } from "./trustWallet.ts";
 
-const mostNodesConfig = Object.values(PUBLIC_NODES).reduce((prev, cur) => {
-    return cur.length > prev ? cur.length : prev
-}, 0)
 
-export const { publicClient, chains } = configureChains(
+export const { provider, chains } = configureChains(
     CHAINS,
-    Array.from({ length: mostNodesConfig })
-        .map((_, i) => i)
-        .map((i) => {
-            return jsonRpcProvider({
-                rpc: (chain) => {
-                    if (process.env.NODE_ENV === 'test' && chain.id === mainnet.id && i === 0) {
-                        return { http: 'https://cloudflare-eth.com' }
-                    }
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-ignore
-                    return PUBLIC_NODES[chain.id]?.[i]
-                        ? {
-                            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                            // @ts-ignore
-                            http: PUBLIC_NODES[chain.id][i],
-                        }
-                        : null
-                },
-            })
-        }),
-    {
-        batch: {
-            multicall: {
-                batchSize: 1024 * 200,
+    [
+        jsonRpcProvider({
+            rpc: (chain) => {
+                return { http: chain.rpcUrls.default.http[0] };
             },
-        }
-    }
+        }),
+    ]
 )
 
 export const metaMaskConnector = new MetaMaskConnector({
@@ -58,11 +33,10 @@ export const coinbaseConnector = new CoinbaseWalletConnector({
     },
 })
 
-export const walletConnectConnector = new WalletConnectConnector({
+export const walletConnectConnector = new WalletConnectLegacyConnector({
     chains,
     options: {
-        showQrModal: true,
-        projectId: 'e542ff314e26ff34de2d4fba98db70bb',
+        qrcode: true,
     },
 })
 
@@ -75,13 +49,13 @@ export const trustWalletConnector = new TrustWalletConnector({
 })
 
 
-export const wagmiConfig = createConfig({
+export const wagmiConfig = createClient({
     storage: createStorage({
         storage:  window.localStorage,
         key: 'wagmi_v1.1',
     }),
     autoConnect: false,
-    publicClient,
+    provider,
     connectors: [
         metaMaskConnector,
         coinbaseConnector,

@@ -6,7 +6,7 @@ import { wagmiConfig } from "./utils/wagmi.ts";
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-    <WagmiConfig config={wagmiConfig}>
+    <WagmiConfig client={wagmiConfig}>
         <React.StrictMode>
             <App />
         </React.StrictMode>

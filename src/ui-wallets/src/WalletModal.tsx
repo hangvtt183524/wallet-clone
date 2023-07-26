@@ -128,7 +128,7 @@ function MobileModal<T>({
                 wallets={wallets_}
                 onClick={(wallet) => {
                     connectWallet(wallet)
-                    setStatus(`${wallet.deepLink} ${wallet.installed}`)
+                    setStatus(`${wallet.installed}`)
                     if (wallet.deepLink && wallet.installed === false) {
                         window.open(wallet.deepLink)
                     }

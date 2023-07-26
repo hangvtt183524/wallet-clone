@@ -1,16 +1,14 @@
 /* eslint-disable prefer-destructuring */
 /* eslint-disable consistent-return */
 /* eslint-disable class-methods-use-this */
-
-import { WindowProvider, Chain, ConnectorNotFoundError } from 'wagmi';
+import { Chain, ConnectorNotFoundError, ResourceUnavailableError, RpcError, UserRejectedRequestError } from 'wagmi';
 import { InjectedConnector } from 'wagmi/connectors/injected';
-import { Address } from '@wagmi/core';
+import { Address, Ethereum, getClient } from '@wagmi/core';
 import { getAddress } from '@ethersproject/address';
-
 
 declare global {
     interface Window {
-        trustwallet?: WindowProvider;
+        trustwallet?: Ethereum;
     }
 }
 
@@ -23,7 +21,6 @@ const mappingNetwork: Record<number, string> = {
 
 export function getTrustWalletProvider() {
     const isTrustWallet = (ethereum: NonNullable<Window['ethereum']>) => {
-        // Identify if Trust Wallet injected provider is present.
         const trustWallet = !!ethereum.isTrust;
 
         return trustWallet;
@@ -31,31 +28,24 @@ export function getTrustWalletProvider() {
 
     const injectedProviderExist = typeof window !== 'undefined' && typeof window.ethereum !== 'undefined';
 
-    // No injected providers exist.
     if (!injectedProviderExist) {
         return;
     }
 
-    // Trust Wallet was injected into window.ethereum.
     if (isTrustWallet(window.ethereum as NonNullable<Window['ethereum']>)) {
         return window.ethereum;
     }
 
-    // Trust Wallet provider might be replaced by another
-    // injected provider, check the providers array.
     if (window.ethereum?.providers) {
         return window.ethereum.providers.find(isTrustWallet);
     }
 
-    // In some cases injected providers can replace window.ethereum
-    // without updating the providers array. In those instances the Trust Wallet
-    // can be installed and its provider instance can be retrieved by
-    // looking at the global `trustwallet` object.
     return window.trustwallet;
 }
 
 export class TrustWalletConnector extends InjectedConnector {
-    readonly id = "trustWallet";
+    readonly id = 'trustWallet';
+
     constructor({
                     chains: _chains,
                     options: _options,
@@ -80,14 +70,16 @@ export class TrustWalletConnector extends InjectedConnector {
 
     private handleFailedConnect(error: Error): never {
         if (this.isUserRejectedRequestError(error)) {
-            throw new Error(error.message);
+            throw new UserRejectedRequestError(error);
+        }
+
+        if ((error as RpcError).code === -32002) {
+            throw new ResourceUnavailableError(error);
         }
 
         throw error;
     }
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     async connect({ chainId }: { chainId?: number } = {}) {
         try {
             const provider = await this.getProvider();
@@ -102,9 +94,11 @@ export class TrustWalletConnector extends InjectedConnector {
             }
 
             this.emit('message', { type: 'connecting' });
-            let account: Address | null = null;
 
-            if (this.options?.shimDisconnect) {
+            // Attempt to show wallet select prompt with `wallet_requestPermissions` when
+            // `shimDisconnect` is active and account is in disconnected state (flag in storage)
+            let account: Address | null = null;
+            if (this.options?.shimDisconnect && !getClient().storage?.getItem(this.shimDisconnectKey)) {
                 account = await this.getAccount().catch(() => null);
                 const isConnected = !!account;
                 if (isConnected) {
@@ -119,9 +113,7 @@ export class TrustWalletConnector extends InjectedConnector {
                     } catch (error) {
                         // Only bubble up error if user rejects request
                         if (this.isUserRejectedRequestError(error)) {
-                            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                            // @ts-ignore
-                            throw new Error(error);
+                            throw new UserRejectedRequestError(error);
                         }
                     }
                 }
@@ -131,11 +123,10 @@ export class TrustWalletConnector extends InjectedConnector {
                 const accounts = await provider.request({
                     method: 'eth_requestAccounts',
                 });
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
                 account = getAddress(accounts[0] as string);
             }
 
+            // Switch to chain if provided
             let id = await this.getChainId();
             let unsupported = this.isChainUnsupported(id);
             if (chainId && id !== chainId) {
@@ -144,12 +135,16 @@ export class TrustWalletConnector extends InjectedConnector {
                 unsupported = this.isChainUnsupported(id);
             }
 
-            return { account, chain: { id, unsupported }, provider };
+            if (this.options?.shimDisconnect) {
+                getClient().storage?.setItem(this.shimDisconnectKey, true);
+            }
 
+            return { account, chain: { id, unsupported }, provider };
         } catch (error) {
             this.handleFailedConnect(error as Error);
         }
     }
+
     async getProvider() {
         return getTrustWalletProvider();
     }
